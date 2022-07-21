@@ -2,6 +2,7 @@
 
 void setup() {
   Serial.begin(9600);
+  Serial.println(">>> Boot <<<");
   // put your setup code here, to run once:
 }
 
