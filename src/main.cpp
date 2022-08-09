@@ -9,8 +9,11 @@
 #include "sensor.h"
 #include "driver/adc.h"
 #include <stdlib.h>
+#include <GyverINA.h>
+
 
 hw_timer_t * timer = NULL;
+INA219 ina;                       // Стандартный набор параметров для Arduino модуля (0.1, 3.2, 0x40)
 
 
 
@@ -35,9 +38,16 @@ uint32_t ii=0;
 
 struct Info SensorInfo;
 
+void IRAM_ATTR onTimer_HB(){
+  digitalWrite(PIN_ALARM_LED, !digitalRead(PIN_ALARM_LED));
+  delayMicroseconds(200);
+  digitalWrite(PIN_ALARM_LED, !digitalRead(PIN_ALARM_LED));
+}
+
 void IRAM_ATTR onTimer(){
+
   uint32_t tmp = micros();
-  Serial.printf(">> %d\n",tmp-lastTimer);
+  // Serial.printf(">> %d\n",tmp-lastTimer);
   lastTimer = tmp;
 
   SensorInfo.UpTime = millis()/1000;
@@ -67,22 +77,66 @@ void IRAM_ATTR onTimer(){
   }
 }
 
+void init_Timer(){
+  /* Use 1st timer of 4 */
+  /* 1 tick take 1/(80MHZ/80) = 1us so we set divider 80 and count up */
+  timer = timerBegin(1, 80, true);
+
+  /* Attach onTimer function to our timer */
+  timerAttachInterrupt(timer, &onTimer, true);
+
+  /* Set alarm to call onTimer function every second 1 tick is 1us
+  => 1 second is 1000000us */
+  /* Repeat the alarm (third parameter) */
+  timerAlarmWrite(timer, 1000000, true);
+
+  /* Start an alarm */
+  timerAlarmEnable(timer);
+  }
+
+void init_Timer_HB(){
+  /* Use 1st timer of 4 */
+  /* 1 tick take 1/(80MHZ/80) = 1us so we set divider 80 and count up */
+  timer = timerBegin(1, 80, true);
+
+  /* Attach onTimer function to our timer */
+  timerAttachInterrupt(timer, &onTimer_HB, true);
+
+  /* Set alarm to call onTimer function every second 1 tick is 1us
+  => 1 second is 1000000us */
+  /* Repeat the alarm (third parameter) */
+  timerAlarmWrite(timer, (1000000), true);
+
+  /* Start an alarm */
+  timerAlarmEnable(timer);
+  }
+
+
 
 void Sensor_UpTimeUpdate(){
   float_t tmp = millis();
   
 }
 
-uint32_t getRR(uint8_t nn){
+
+float getR(){
+  float u = abs(ina.getVoltage());
+  float i = abs(ina.getCurrent());
+  float r = u/i;
+
+
+  return r*100.0;
+}
+long getRR(uint8_t nn){
   int n = nn;
  
-  uint32_t RR = 0;
-  uint32_t LR = 0;
-  uint32_t SR = 0;
+  long RR = 0;
+  long LR = 0;
+  long SR = 0;
 
   while(n==0){
-    if(RR==0 and LR==0) RR=LR=random();
-    else RR=random();
+    if(RR==0 and LR==0) RR=LR=getR();
+    else RR=getR();
 
     if (abs( (long)(RR-LR) )  <= LR *2){  
       SR = SR + RR;
@@ -93,19 +147,40 @@ uint32_t getRR(uint8_t nn){
   }  
 
   SR = ( RR / nn );
+  Serial.println(SR);
   return SR;
 }
 
+
+
 void Sensor_ResistanceUpdate(){
-  Serial.println(":: [F] Sensor_ResistanceUpdate()");
-  SensorInfo.R = getRR(5);
-  SensorInfo.dt = (millis()/1000) - SensorInfo.t_last;
-  SensorInfo.dR = (SensorInfo.R - SensorInfo.R_Last)/(SensorInfo.dt);
-  float_t tmp = random(0,100);
+  // Serial.println(":: [F] Sensor_ResistanceUpdate()");
+  digitalWrite(PIN_ALARM_BEEP, !digitalRead(PIN_ALARM_BEEP));
+  delayMicroseconds(100);
+  digitalWrite(PIN_ALARM_BEEP, !digitalRead(PIN_ALARM_BEEP));
+  uint32_t tmp = (getR()+getR()+getR())/3;
   if (SensorInfo.Resistance != tmp){
     SensorInfo.Resistance = tmp;
-    Characteristic_Sensor_Value.setValue(tmp);
-    Characteristic_Sensor_Value.notify();
+
+    if(SensorInfo.isArmed){
+      if(SensorInfo.Resistance >= SensorInfo.ResistanceMAX) ALARM_MODE=1;
+      else if(SensorInfo.Resistance >= SensorInfo.ResistanceMAX*0.8 ) ALARM_MODE=2;
+      else ALARM_MODE=0;
+
+    }else{
+      ALARM_MODE=0;
+    }
+
+    Serial.print(millis());
+    Serial.print(" :: ");
+    Serial.print(tmp);
+    Serial.print(" ::: ");
+    Serial.print(SensorInfo.ResistanceMAX,0);
+    Serial.print(" ::: ");
+    Serial.println(ALARM_MODE);
+    
+    
+    
     Sensor_Resistance_Value_expired = false; 
   }
 }
@@ -129,36 +204,68 @@ void Sensor_TemperatureUpdate(){
 }
 
 void UpdateAdvertisingData(){
-  Serial.println(":: [F] Sensor_UpdateAdvertisingData()");
+  // Serial.println(":: [F] Sensor_UpdateAdvertisingData()");
+  char txString[8];
+  dtostrf(SensorInfo.Resistance, 1, 2, txString);
+  float oo= SensorInfo.Resistance/100;
+  Characteristic_Sensor_Value.setValue(oo);
+  Characteristic_Sensor_Value.notify();
+  
+
+  oo = millis()/1000;
+  Characteristic_Sensor_UpTime.setValue(oo);
+  Characteristic_Sensor_UpTime.notify();
+
+  
+  if(ALARM_MODE==2)  Characteristic_Sensor_Status.setValue("WARNING");
+  if(ALARM_MODE==1)  Characteristic_Sensor_Status.setValue("ALARM");
+  if(ALARM_MODE==0)  Characteristic_Sensor_Status.setValue("NORMAL");
+  Characteristic_Sensor_Status.notify();
+  
+  oo = SensorInfo.ResistanceMAX/100;
+  Characteristic_Sensor_Value_Set.setValue(oo);
+  Characteristic_Sensor_Value_Set.notify();
+
+}
+
+void IRAM_ATTR isr() {
+  if(ALARM_MODE!=0) ALARM_MODE=0;
 }
 
 void init_pin(){
-  // pinMode(PIN_ALARM_LED  , OUTPUT);
-  // pinMode(PIN_BUTTON, INPUT_PULLUP);
-  // pinMode(PIN_BEEP  , OUTPUT);
+  pinMode(PIN_ALARM_LED  , OUTPUT);
+  pinMode(PIN_BUTTON, INPUT_PULLUP);
+  pinMode(PIN_BEEP  , OUTPUT);
   pinMode(A0  , OUTPUT);
+  // adc_power_off();
 
-
-
+digitalWrite(PIN_ALARM_BEEP,HIGH);
+digitalWrite(PIN_ALARM_LED,HIGH);
+delay(100);
+digitalWrite(PIN_ALARM_BEEP,LOW);
+digitalWrite(PIN_ALARM_LED,LOW);
+attachInterrupt(PIN_BUTTON, isr, FALLING);
   
 }
 
 void init_flash(){
   digitalWrite(PIN_BEEP,HIGH);
-  digitalWrite(PIN_ALARM_LED,HIGH);  
+  // digitalWrite(PIN_ALARM_LED,HIGH);  
   delay(250);
   digitalWrite(PIN_BEEP,LOW);
-  digitalWrite(PIN_ALARM_LED,LOW);  
+  // digitalWrite(PIN_ALARM_LED,LOW);  
 }
 
 void init_Sensor(){
   SensorInfo.Status        = 0;   // uint8_t 0 --> 255
-  SensorInfo.ALARM         = false;
+  SensorInfo.ALARM         = 0;
   SensorInfo.dR            = 0; 
   SensorInfo.Resistance    = 0;
-  SensorInfo.ResistanceMAX = 0;
+  SensorInfo.ResistanceMAX = 10*100;
   SensorInfo.Temperature   = 0;
   SensorInfo.BatteryLevel  = 0;
+  SensorInfo.isArmed       = true;
+
 }
 
 
@@ -172,12 +279,15 @@ class MyServerCallbacks: public BLEServerCallbacks {
   void onConnect(BLEServer* pServer) {
     deviceConnected = true;
     Serial.println(":: BLE Connect");
+    // digitalWrite(PIN_ALARM_LED,HIGH);
   };
   void onDisconnect(BLEServer* pServer) {
     deviceConnected = false;
     Serial.println(":: BLE Disconnect");
     Serial.println(":: >> Restart Advertising ..... ");
     pServer->getAdvertising()->start();
+    // digitalWrite(PIN_ALARM_LED,LOW);
+
   }
 };
 
@@ -203,6 +313,7 @@ class Sensor_Value_Set_Callbacks: public BLECharacteristicCallbacks {
       uint8_t* received_data = pCharacteristic->getData();
       Serial.print(":: Sensor_Value_Set_Callbacks >> onWrite >> ");
       Serial.println(*received_data);
+      SensorInfo.ResistanceMAX = *received_data*100;
     }
 };
 
@@ -217,7 +328,10 @@ class Sensor_Reset_Callbacks: public BLECharacteristicCallbacks {
 
 void init_BLE(){
    // Create the BLE Device 
-  BLEDevice::init("MyESP32");
+   char name[25];
+   String SS ="SENSOR"+(String)(ESP.getEfuseMac()) ;
+  SS.toCharArray(name,25);
+  BLEDevice::init(name);
 
   // Create the BLE Server
   BLEServer  *pServer = BLEDevice::createServer();
@@ -245,7 +359,7 @@ void init_BLE(){
   Descripto_Sensor_Value_Set.setValue("Sensor Value Set");
   Characteristic_Sensor_Value_Set.addDescriptor(&Descripto_Sensor_Value_Set);
   Characteristic_Sensor_Value_Set.setCallbacks(new Sensor_Value_Set_Callbacks());
-  Characteristic_Sensor_Value_Set.setValue("666");
+  
 
   // // ALARM
   // pService->addCharacteristic(&Characteristic_Sensor_Alarm);
@@ -288,37 +402,35 @@ void init_BLE(){
   // pServer->getAdvertising()->start();
 
   pAdvertising = pServer->getAdvertising();
-  advert.setName("ESP32-new");
-  pAdvertising->setAdvertisementData(advert);
+  // advert.setName("ESP32-new");
+  // pAdvertising->setAdvertisementData(advert);
+
+
   pAdvertising->start();
+
 }
 
 
 
-void init_Timer(){
-  /* Use 1st timer of 4 */
-  /* 1 tick take 1/(80MHZ/80) = 1us so we set divider 80 and count up */
-  timer = timerBegin(0, 80, true);
-
-  /* Attach onTimer function to our timer */
-  timerAttachInterrupt(timer, &onTimer, true);
-
-  /* Set alarm to call onTimer function every second 1 tick is 1us
-  => 1 second is 1000000us */
-  /* Repeat the alarm (third parameter) */
-  timerAlarmWrite(timer, 2000000, true);
-
-  /* Start an alarm */
-  timerAlarmEnable(timer);
-  }
-
 
 void setup() {
-  Serial.begin(9600);
+  // Serial.begin(9600);
   init_pin();
   init_BLE();
   // init_Timer();
-
+  init_Sensor();
+  // init_Timer_HB();
+  // setCpuFrequencyMhz(40);
+  if (ina.begin()) {
+    Serial.println(F("connected!"));
+  } else {
+    Serial.println(F("not found!"));
+    while (1);
+  }
+  Serial.print(F("Calibration value: ")); Serial.println(ina.getCalibration());
+  ina.setResolution(INA219_VSHUNT, INA219_RES_12BIT_X128);  
+  
+  Serial.println("");
   Serial.println(":: >>> Boot <<<");
   Serial.printf(":: ESP.getChipCores:     %d\n", ESP.getChipCores());
   Serial.printf(":: ESP.getChipModel:     %d\n", ESP.getChipModel());
@@ -327,80 +439,63 @@ void setup() {
   Serial.printf(":: ESP.getEfuseMac:      %d\n", ESP.getEfuseMac());
   Serial.printf(":: ESP.getFlashChipMode: %d\n", ESP.getFlashChipMode());
   Serial.printf(":: ESP.getFlashChipSize: %d\n", ESP.getFlashChipSize());
-
-uint32_t Freq = 0;
-  // setCpuFrequencyMhz(10);
-  Freq = getCpuFrequencyMhz();
-  Serial.print("CPU Freq = ");
-  Serial.print(Freq);
-  Serial.println(" MHz");
-  Freq = getXtalFrequencyMhz();
-  Serial.print("XTAL Freq = ");
-  Serial.print(Freq);
-  Serial.println(" MHz");
-  Freq = getApbFrequency();
-  Serial.print("APB Freq = ");
-  Serial.print(Freq);
-  Serial.println(" Hz");
-  // adc_power_off();
-}
+  
+  }
 
 
-void loop() {
+
+
 int i=0;
 
-digitalWrite(A0,!digitalRead(A0));
-//   // Characteristic_Sensor_UpTime.setValue(millis());
-//   // Characteristic_Sensor_UpTime.notify();
-//   // PrintSensor();
-//   if (Sensor_Resistance_Value_expired){
-//     Sensor_ResistanceUpdate();
-//     Sensor_Resistance_Value_expired = false;
-//     Sensor_UpdateAdvertisingData = true;
-//   }
+void loop() {
+  
+  if(i>=Sensor_Resistance_CheckPeriod){
+    Sensor_Resistance_Value_expired=true;
+    i=0;
+  }else i++;
 
-//   if(Sensor_Battery_Value_expired){
-//     Sesnosr_BatteryUpdate();
-//     Sensor_Battery_Value_expired = false;
-//     Sensor_UpdateAdvertisingData = true;
-//   }
 
-//   if(Sensor_Temperature_Value_expired){
-//     Sensor_TemperatureUpdate();
-//     Sensor_Temperature_Value_expired = false;
-//     Sensor_UpdateAdvertisingData = true;
-//   }
+  if (Sensor_Resistance_Value_expired){
+    onTimer_HB();
+    Sensor_ResistanceUpdate();
+    Sensor_Resistance_Value_expired = false;
+    Sensor_UpdateAdvertisingData = true;
+  }
 
-//   if(Sensor_UpdateAdvertisingData){
-//     UpdateAdvertisingData();
-//     Sensor_UpdateAdvertisingData = false;
-//   }
 
-//   if(ALARM_MODE){
-//     // if alarmis on
-//     // blinking and make noise
-//     if ( (millis() - lastAlarm) > 150 ){
-//       digitalWrite(PIN_ALARM_LED  , !digitalRead(PIN_ALARM_LED));
-//       digitalWrite(PIN_ALARM_BEEP , !digitalRead(PIN_ALARM_BEEP));
-//       lastAlarm = millis();
-//     }
+  if(Sensor_UpdateAdvertisingData){
+    UpdateAdvertisingData();
+    Sensor_UpdateAdvertisingData = false;
+  }
+
+  if(ALARM_MODE==1){
+    // if alarmis on
+    // blinking and make noise
+    if ( (millis() - lastAlarm) > 150 ){
+      digitalWrite(PIN_ALARM_LED  , !digitalRead(PIN_ALARM_LED));
+      digitalWrite(PIN_ALARM_BEEP , !digitalRead(PIN_ALARM_BEEP));
+      lastAlarm = millis();
+    }
     
-//   }else if( ALARM_MODE == false && lastAlarm !=0 ){
-//     // if alarm stop
-//     digitalWrite(PIN_ALARM_LED, LOW);
-//     digitalWrite(PIN_ALARM_BEEP, LOW);
-//     ALARM_MODE = false;
-//     lastAlarm  = 0;
-//   }else{
-//     lastAlarm  = 0;
-//     ALARM_MODE = false;
+  }else if( ALARM_MODE == 0 && lastAlarm !=0 ){
+    // if alarm stop
+    digitalWrite(PIN_ALARM_LED, LOW);
+    digitalWrite(PIN_ALARM_BEEP, LOW);
+    ALARM_MODE = false;
+    lastAlarm  = 0;
+  }else{
+    lastAlarm  = 0;
+    ALARM_MODE = 0;
 
 
-//   }
+  }
 
-
+// digitalWrite(PIN_ALARM_LED, !digitalRead(PIN_ALARM_LED));
 // // esp_sleep_enable_timer_wakeup(5*1000000 );
 // // delay(100);
 // // esp_light_sleep_start();
-  delay(1000);
+  // xx--;
+  // Characteristic_Sensor_Status.setValue(xx);
+  // Characteristic_Sensor_Status.notify();
+  delay(500);
 }
