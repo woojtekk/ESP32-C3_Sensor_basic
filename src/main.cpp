@@ -10,6 +10,7 @@
 #include "driver/adc.h"
 #include <stdlib.h>
 #include <GyverINA.h>
+#include "Version.h"
 ///////////////////////
 ///////////////////////
 
