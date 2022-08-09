@@ -12,7 +12,7 @@
 #include <GyverINA.h>
 #include "Version.h"
 ///////////////////////
-// labortest2
+// labortest2s
 ///////////////////////
 
 hw_timer_t * timer = NULL;
