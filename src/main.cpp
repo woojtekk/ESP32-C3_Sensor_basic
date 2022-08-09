@@ -12,11 +12,11 @@
 #include <GyverINA.h>
 #include "Version.h"
 ///////////////////////
+// labortest
 ///////////////////////
 
 hw_timer_t * timer = NULL;
 INA219 ina;                       // Стандартный набор параметров для Arduino модуля (0.1, 3.2, 0x40)
-
 
 
 template <class T> int EEPROM_writeAnything(int ee, const T& value){
