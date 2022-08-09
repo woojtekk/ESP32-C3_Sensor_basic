@@ -10,7 +10,7 @@
 #include "driver/adc.h"
 #include <stdlib.h>
 #include <GyverINA.h>
-
+///////////////////////
 
 hw_timer_t * timer = NULL;
 INA219 ina;                       // Стандартный набор параметров для Arduino модуля (0.1, 3.2, 0x40)
