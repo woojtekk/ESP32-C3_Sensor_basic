@@ -18,22 +18,24 @@ volatile uint16_t Sensor_Temperature_LastCheck     = 0;
 volatile bool     Sensor_Temperature_Value_expired = true;
 
 volatile bool     Sensor_UpdateAdvertisingData = false;
-volatile bool ALARM_MODE = false;
+volatile int      ALARM_MODE = 0;
 
-#define PIN_ALARM_BEEP  24
-#define PIN_ALARM_LED   A3
-#define PIN_BUTTON 23
-#define PIN_BEEP   24
+
+
+#define PIN_ALARM_BEEP  A2
+#define PIN_ALARM_LED   TX
+#define PIN_BUTTON A3
+#define PIN_BEEP   A2
 
 volatile uint32_t lastAlarm = 0;
 
 
 //define BLE UUID characteristics
 
-#define BLE_UUID_SENSOR_SERVICE       "3460afd3-92e4-4bf8-b6dd-c239277a46b4"
+#define BLE_UUID_SENSOR_SERVICE       "3460afd3-92e4-4bf8-b6dd-c239277a46b4"    //
 #define BLE_UUID_SENSOR_STATUS        "2881687f-bf2e-4b0a-b0f5-15a65cccb432"
 #define BLE_UUID_SENSOR_VALUE         "5f7087eb-785b-4906-8a62-460c9a379cc1"
-#define BLE_UUID_SENSOR_VALUE_SET     "0d872907-0fc2-4e81-beb2-238f4ef3ae8d"
+#define BLE_UUID_SENSOR_VALUE_SET     "0d872907-0fc2-4e81-beb2-238f4ef3ae8d"    // 
 #define BLE_UUID_SENSOR_ALARM         "4aaa4483-adc6-414b-aca7-f3dabe253c36"
 #define BLE_UUID_SENSOR_ALARM_RESET   "c7d2ded0-26aa-4a54-bfe1-18553aa774d8"
 #define BLE_UUID_SENSOR_UPDATE_PERIOD "db68db01-e0dd-411d-859d-32a2ef68811f"
@@ -89,16 +91,21 @@ struct Info{
     volatile uint32_t dR;               // pochodna zmiany rezystancji 
     volatile uint32_t SdR;              // średnia z osttanich N pomiarów
     volatile uint32_t R;                // wartość rezystancji z obecnego pomiaru
+    
     volatile uint32_t R_Last;           // wartość rezystancji z osttaniego pomiaru
     volatile uint32_t SR;               // średnia z osttanich N pomiarów
     volatile uint8_t  N;                // ilość pomiarów do wyliczania średniej SR
     volatile uint32_t nn;               // ilośc pomiarów do wyliczania wartosci R
     volatile uint32_t t;                // wartość czasu z obecnego pomiaru
-    volatile uint32_t t_last;                // wartość czasu z obecnego pomiaru
+    volatile uint32_t t_last;           // wartość czasu z obecnego pomiaru
     volatile uint32_t dt;               // czas pomiedzy pomiarami
-    volatile uint32_t t_lastlast;           // wartośc czasu z ostatniego pomiaru
-    volatile uint32_t Resistance;
-    volatile uint32_t ResistanceMAX;
+    volatile uint32_t t_lastlast;       // wartośc czasu z ostatniego pomiaru
+    
+    bool isArmed;
+    double Resistance;
+    double ResistanceZero;
+    double Resistance_percentage;
+    double ResistanceMAX;
     volatile float_t Temperature;
     volatile uint32_t BatteryLevel;
     volatile uint32_t UpTime;
