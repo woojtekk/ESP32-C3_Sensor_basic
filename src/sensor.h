@@ -22,18 +22,11 @@ volatile int      ALARM_MODE = 0;
 
 
 
-<<<<<<< HEAD
 #define PIN_ALARM_BEEP  SCL     //
 #define PIN_ALARM_LED   A0      //
 #define PIN_BUTTON TX           //
 #define PIN_BEEP   SCL          //
 #define PIN_SENSOR A1           //
-=======
-#define PIN_ALARM_BEEP  A2
-#define PIN_ALARM_LED   TX
-#define PIN_BUTTON A3
-#define PIN_BEEP   A2
->>>>>>> 85422337c39cafaecf8b6a461934900eb3373a7d
 
 volatile uint32_t lastAlarm = 0;
 
@@ -114,17 +107,10 @@ struct Info{
     volatile uint32_t t_lastlast;       // wartośc czasu z ostatniego pomiaru
     
     bool isArmed;
-<<<<<<< HEAD
     uint32_t Resistance;
     double ResistanceZero;
     double Resistance_percentage;
     uint32_t ResistanceMAX;
-=======
-    double Resistance;
-    double ResistanceZero;
-    double Resistance_percentage;
-    double ResistanceMAX;
->>>>>>> 85422337c39cafaecf8b6a461934900eb3373a7d
     volatile float_t Temperature;
     volatile uint32_t BatteryLevel;
     volatile uint32_t UpTime;
