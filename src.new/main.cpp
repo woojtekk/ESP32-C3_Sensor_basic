@@ -152,15 +152,16 @@ long getRR(uint8_t nn){
 }
 
 
-uint32_t tmp2=0;
+
 void Sensor_ResistanceUpdate(){
   // Serial.println(":: [F] Sensor_ResistanceUpdate()");
   digitalWrite(PIN_ALARM_BEEP, !digitalRead(PIN_ALARM_BEEP));
   delayMicroseconds(100);
   digitalWrite(PIN_ALARM_BEEP, !digitalRead(PIN_ALARM_BEEP));
-  // uint32_t tmp =SensorInfo.Resistance+5;// (getR()+getR()+getR())/3;
-  // Serial.println(tmp);
- int sensorValue = analogRead(A1);
+  // uint32_t tmp = (getR()+getR()+getR())/3;
+  uint32_t tmp = 123; // random();
+
+  int sensorValue = analogRead(A1);
   // Convert the analog reading (which goes from 0 - 1023) to a voltage (0 - 5V):
   float voltage = sensorValue * (2.6 / 4095.0);
   float voltage2 = analogReadMilliVolts(A1);
@@ -174,13 +175,17 @@ void Sensor_ResistanceUpdate(){
   float Rx2 = voltage2 / 0.104;
 
 
-  tmp2+=11;
-  uint32_t tmp = tmp2;
 
-
-
+  SensorInfo.Resistance = tmp;
+  Serial.print(millis());
+  Serial.print(" :: ");
+  Serial.print(tmp);
+  Serial.print(" ::: ");
+  Serial.print(SensorInfo.ResistanceMAX,0);
+  Serial.print(" ::: ");
+  Serial.println(ALARM_MODE);
+  
   if (SensorInfo.Resistance != tmp){
-    SensorInfo.Resistance = tmp;
 
     if(SensorInfo.isArmed){
       if(SensorInfo.Resistance >= SensorInfo.ResistanceMAX) ALARM_MODE=1;
@@ -225,14 +230,15 @@ void Sensor_TemperatureUpdate(){
 
 void UpdateAdvertisingData(){
   // Serial.println(":: [F] Sensor_UpdateAdvertisingData()");
-  // char txString[8];
-  // dtostrf(SensorInfo.Resistance, 1, 2, txString);
-  Sesnosr_BatteryUpdate();
-  
-  Characteristic_Sensor_Value.setValue(SensorInfo.Resistance);
+  char txString[8];
+  dtostrf(SensorInfo.Resistance, 1, 2, txString);
+  float oo= SensorInfo.Resistance/100;
+  Characteristic_Sensor_Value.setValue(oo);
   Characteristic_Sensor_Value.notify();
-  uint32_t uptime = millis()/1000;
-  Characteristic_Sensor_UpTime.setValue(uptime);
+  
+
+  oo = millis()/1000;
+  Characteristic_Sensor_UpTime.setValue(oo);
   Characteristic_Sensor_UpTime.notify();
 
   
@@ -241,30 +247,21 @@ void UpdateAdvertisingData(){
   if(ALARM_MODE==0)  Characteristic_Sensor_Status.setValue("NORMAL");
   Characteristic_Sensor_Status.notify();
   
-  
-  Characteristic_Sensor_Value_Set.setValue(SensorInfo.ResistanceMAX);
+  oo = SensorInfo.ResistanceMAX/100;
+  Characteristic_Sensor_Value_Set.setValue(oo);
   Characteristic_Sensor_Value_Set.notify();
 
 }
 
 void IRAM_ATTR isr() {
   if(ALARM_MODE!=0) ALARM_MODE=0;
-  // // SensorInfo.isArmed=!SensorInfo.isArmed;
-  // if(SensorInfo.isArmed){
-  //   if(ALARM_MODE!=0) ALARM_MODE=0;
-  //   SensorInfo.isArmed=false;
-  // }else{
-  //   SensorInfo.isArmed=true;
-  // }
 }
 
 void init_pin(){
-  // pinMode(PIN_ALARM_LED  , OUTPUT);
+  pinMode(PIN_ALARM_LED  , OUTPUT);
   pinMode(PIN_BUTTON, INPUT_PULLUP);
   pinMode(PIN_BEEP  , OUTPUT);
-  pinMode(PIN_SENSOR, INPUT);
-  pinMode(PIN_ALARM_LED,OUTPUT);
-  // pinMode(A0  , OUTPUT);
+  pinMode(A0  , OUTPUT);
   // adc_power_off();
 
 digitalWrite(PIN_ALARM_BEEP,HIGH);
@@ -289,7 +286,7 @@ void init_Sensor(){
   SensorInfo.ALARM         = 0;
   SensorInfo.dR            = 0; 
   SensorInfo.Resistance    = 0;
-  SensorInfo.ResistanceMAX = 10*1000;
+  SensorInfo.ResistanceMAX = 10*100;
   SensorInfo.Temperature   = 0;
   SensorInfo.BatteryLevel  = 0;
   SensorInfo.isArmed       = true;
@@ -338,16 +335,11 @@ class Sensor_Status_Callbacks: public BLECharacteristicCallbacks {
 class Sensor_Value_Set_Callbacks: public BLECharacteristicCallbacks {
     void onWrite(BLECharacteristic *pCharacteristic)
     {
-      std::string value = pCharacteristic->getValue();
-      uint32_t val1 = ((value[3]<<24))|((value[2]<<16))|((value[1]<<8))|((value[0]));
-      
+      uint8_t* received_data = pCharacteristic->getData();
       Serial.print(":: Sensor_Value_Set_Callbacks >> onWrite >> ");
-      Serial.println(val1);
-      SensorInfo.ResistanceMAX = val1;
-
+      Serial.println(*received_data);
+      SensorInfo.ResistanceMAX = *received_data;
     }
-
-    
 };
 
 class Sensor_Reset_Callbacks: public BLECharacteristicCallbacks {
@@ -361,11 +353,10 @@ class Sensor_Reset_Callbacks: public BLECharacteristicCallbacks {
 
 void init_BLE(){
    // Create the BLE Device 
-   String name=(String)(ESP.getEfuseMac()) ;
-   String SS ="SENSOR_"+(name.substring(name.length()-4,name.length()));
-   char tmp[25];
-  SS.toCharArray(tmp,25);
-  BLEDevice::init(tmp);
+   char name[25];
+   String SS ="SENSOR_001";//+(String)ESP.getEfuseMac() ;
+  SS.toCharArray(name,25);
+  BLEDevice::init(name);
 
   // Create the BLE Server
   BLEServer  *pServer = BLEDevice::createServer();
@@ -376,10 +367,6 @@ void init_BLE(){
 
 
   // Create BLE Characteristics and Create a BLE Descriptor
-    // STATUS
-  // pService->addCharacteristic(&Characteristic_Sensor_Battery);
-  // Characteristic_Sensor_Battery.setValue("0");
-
   // STATUS
   pService->addCharacteristic(&Characteristic_Sensor_Status);
   Descripto_Sensor_Status.setValue("Sensor Status");
@@ -492,6 +479,8 @@ void loop() {
     i=0;
   }else i++;
 
+Sensor_ResistanceUpdate();
+UpdateAdvertisingData();
 
   if (Sensor_Resistance_Value_expired){
     onTimer_HB();

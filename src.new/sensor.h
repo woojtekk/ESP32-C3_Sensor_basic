@@ -22,11 +22,10 @@ volatile int      ALARM_MODE = 0;
 
 
 
-#define PIN_ALARM_BEEP  SCL     //
-#define PIN_ALARM_LED   A0      //
-#define PIN_BUTTON TX           //
-#define PIN_BEEP   SCL          //
-#define PIN_SENSOR A1           //
+#define PIN_ALARM_BEEP  A2
+#define PIN_ALARM_LED   A0
+#define PIN_BUTTON TX
+#define PIN_BEEP   SCL
 
 volatile uint32_t lastAlarm = 0;
 
@@ -43,16 +42,12 @@ volatile uint32_t lastAlarm = 0;
 #define BLE_UUID_SENSOR_RESET         "db68db01-e0dd-411d-859d-32a2ef68811g"
 #define BLE_UUID_SENSOR_UPTIME        "c2493ab8-2d30-4b8e-adef-7a023fd1d57c"
 #define BLE_UUID_SENSOR_TEMPERATURE   "0x2A1E"
-#define BLE_UUID_SENSOR_BATTERY       "0x2A19"
 
 
 BLEAdvertisementData advert;
 BLEAdvertising *pAdvertising;
 
 // Create BLE Descriptor
-// Battery 
-// BLECharacteristic BatteryLevelCharacteristic(BLEUUID((uint16_t)0x2A19), BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY);
-// BLEDescriptor BatteryLevelDescriptor(BLEUUID((uint16_t)0x2901));
 // STATUS
 BLECharacteristic Characteristic_Sensor_Status(BLE_UUID_SENSOR_STATUS, BLECharacteristic::PROPERTY_NOTIFY);
 BLEDescriptor     Descripto_Sensor_Status(BLEUUID((uint16_t)0x2902));
@@ -107,10 +102,10 @@ struct Info{
     volatile uint32_t t_lastlast;       // wartośc czasu z ostatniego pomiaru
     
     bool isArmed;
-    uint32_t Resistance;
+    double Resistance;
     double ResistanceZero;
     double Resistance_percentage;
-    uint32_t ResistanceMAX;
+    double ResistanceMAX;
     volatile float_t Temperature;
     volatile uint32_t BatteryLevel;
     volatile uint32_t UpTime;
