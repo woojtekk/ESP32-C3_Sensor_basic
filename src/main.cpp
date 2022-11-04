@@ -10,14 +10,7 @@
 #include "driver/adc.h"
 #include <stdlib.h>
 #include <GyverINA.h>
-<<<<<<< HEAD
 
-=======
-#include "Version.h"
-///////////////////////
-///////////////////////
-///////////////////////
->>>>>>> 85422337c39cafaecf8b6a461934900eb3373a7d
 
 hw_timer_t * timer = NULL;
 INA219 ina;                       // Стандартный набор параметров для Arduino модуля (0.1, 3.2, 0x40)
@@ -159,17 +152,12 @@ long getRR(uint8_t nn){
 }
 
 
-<<<<<<< HEAD
 uint32_t tmp2=0;
-=======
-
->>>>>>> 85422337c39cafaecf8b6a461934900eb3373a7d
 void Sensor_ResistanceUpdate(){
   // Serial.println(":: [F] Sensor_ResistanceUpdate()");
   digitalWrite(PIN_ALARM_BEEP, !digitalRead(PIN_ALARM_BEEP));
   delayMicroseconds(100);
   digitalWrite(PIN_ALARM_BEEP, !digitalRead(PIN_ALARM_BEEP));
-<<<<<<< HEAD
   // uint32_t tmp =SensorInfo.Resistance+5;// (getR()+getR()+getR())/3;
   // Serial.println(tmp);
  int sensorValue = analogRead(A1);
@@ -191,9 +179,6 @@ void Sensor_ResistanceUpdate(){
 
 
 
-=======
-  uint32_t tmp = (getR()+getR()+getR())/3;
->>>>>>> 85422337c39cafaecf8b6a461934900eb3373a7d
   if (SensorInfo.Resistance != tmp){
     SensorInfo.Resistance = tmp;
 
@@ -240,7 +225,6 @@ void Sensor_TemperatureUpdate(){
 
 void UpdateAdvertisingData(){
   // Serial.println(":: [F] Sensor_UpdateAdvertisingData()");
-<<<<<<< HEAD
   // char txString[8];
   // dtostrf(SensorInfo.Resistance, 1, 2, txString);
   Sesnosr_BatteryUpdate();
@@ -249,17 +233,6 @@ void UpdateAdvertisingData(){
   Characteristic_Sensor_Value.notify();
   uint32_t uptime = millis()/1000;
   Characteristic_Sensor_UpTime.setValue(uptime);
-=======
-  char txString[8];
-  dtostrf(SensorInfo.Resistance, 1, 2, txString);
-  float oo= SensorInfo.Resistance/100;
-  Characteristic_Sensor_Value.setValue(oo);
-  Characteristic_Sensor_Value.notify();
-  
-
-  oo = millis()/1000;
-  Characteristic_Sensor_UpTime.setValue(oo);
->>>>>>> 85422337c39cafaecf8b6a461934900eb3373a7d
   Characteristic_Sensor_UpTime.notify();
 
   
@@ -268,20 +241,14 @@ void UpdateAdvertisingData(){
   if(ALARM_MODE==0)  Characteristic_Sensor_Status.setValue("NORMAL");
   Characteristic_Sensor_Status.notify();
   
-<<<<<<< HEAD
   
   Characteristic_Sensor_Value_Set.setValue(SensorInfo.ResistanceMAX);
-=======
-  oo = SensorInfo.ResistanceMAX/100;
-  Characteristic_Sensor_Value_Set.setValue(oo);
->>>>>>> 85422337c39cafaecf8b6a461934900eb3373a7d
   Characteristic_Sensor_Value_Set.notify();
 
 }
 
 void IRAM_ATTR isr() {
   if(ALARM_MODE!=0) ALARM_MODE=0;
-<<<<<<< HEAD
   // // SensorInfo.isArmed=!SensorInfo.isArmed;
   // if(SensorInfo.isArmed){
   //   if(ALARM_MODE!=0) ALARM_MODE=0;
@@ -298,15 +265,6 @@ void init_pin(){
   pinMode(PIN_SENSOR, INPUT);
   pinMode(PIN_ALARM_LED,OUTPUT);
   // pinMode(A0  , OUTPUT);
-=======
-}
-
-void init_pin(){
-  pinMode(PIN_ALARM_LED  , OUTPUT);
-  pinMode(PIN_BUTTON, INPUT_PULLUP);
-  pinMode(PIN_BEEP  , OUTPUT);
-  pinMode(A0  , OUTPUT);
->>>>>>> 85422337c39cafaecf8b6a461934900eb3373a7d
   // adc_power_off();
 
 digitalWrite(PIN_ALARM_BEEP,HIGH);
@@ -331,11 +289,7 @@ void init_Sensor(){
   SensorInfo.ALARM         = 0;
   SensorInfo.dR            = 0; 
   SensorInfo.Resistance    = 0;
-<<<<<<< HEAD
   SensorInfo.ResistanceMAX = 10*1000;
-=======
-  SensorInfo.ResistanceMAX = 10*100;
->>>>>>> 85422337c39cafaecf8b6a461934900eb3373a7d
   SensorInfo.Temperature   = 0;
   SensorInfo.BatteryLevel  = 0;
   SensorInfo.isArmed       = true;
@@ -388,14 +342,9 @@ class Sensor_Value_Set_Callbacks: public BLECharacteristicCallbacks {
       uint32_t val1 = ((value[3]<<24))|((value[2]<<16))|((value[1]<<8))|((value[0]));
       
       Serial.print(":: Sensor_Value_Set_Callbacks >> onWrite >> ");
-<<<<<<< HEAD
       Serial.println(val1);
       SensorInfo.ResistanceMAX = val1;
 
-=======
-      Serial.println(*received_data);
-      SensorInfo.ResistanceMAX = *received_data*100;
->>>>>>> 85422337c39cafaecf8b6a461934900eb3373a7d
     }
 
     
@@ -412,18 +361,11 @@ class Sensor_Reset_Callbacks: public BLECharacteristicCallbacks {
 
 void init_BLE(){
    // Create the BLE Device 
-<<<<<<< HEAD
    String name=(String)(ESP.getEfuseMac()) ;
    String SS ="SENSOR_"+(name.substring(name.length()-4,name.length()));
    char tmp[25];
   SS.toCharArray(tmp,25);
   BLEDevice::init(tmp);
-=======
-   char name[25];
-   String SS ="SENSOR"+(String)(ESP.getEfuseMac()) ;
-  SS.toCharArray(name,25);
-  BLEDevice::init(name);
->>>>>>> 85422337c39cafaecf8b6a461934900eb3373a7d
 
   // Create the BLE Server
   BLEServer  *pServer = BLEDevice::createServer();
@@ -510,14 +452,13 @@ void init_BLE(){
 
 
 void setup() {
-  // Serial.begin(9600);
+  Serial.begin(9600);
   init_pin();
   init_BLE();
   // init_Timer();
   init_Sensor();
   // init_Timer_HB();
   // setCpuFrequencyMhz(40);
-<<<<<<< HEAD
   // if (ina.begin()) {
   //   Serial.println(F("connected!"));
   // } else {
@@ -526,16 +467,6 @@ void setup() {
   // }
   // Serial.print(F("Calibration value: ")); Serial.println(ina.getCalibration());
   // ina.setResolution(INA219_VSHUNT, INA219_RES_12BIT_X128);  
-=======
-  if (ina.begin()) {
-    Serial.println(F("connected!"));
-  } else {
-    Serial.println(F("not found!"));
-    while (1);
-  }
-  Serial.print(F("Calibration value: ")); Serial.println(ina.getCalibration());
-  ina.setResolution(INA219_VSHUNT, INA219_RES_12BIT_X128);  
->>>>>>> 85422337c39cafaecf8b6a461934900eb3373a7d
   
   Serial.println("");
   Serial.println(":: >>> Boot <<<");
@@ -605,8 +536,4 @@ void loop() {
   // Characteristic_Sensor_Status.setValue(xx);
   // Characteristic_Sensor_Status.notify();
   delay(500);
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> 85422337c39cafaecf8b6a461934900eb3373a7d
